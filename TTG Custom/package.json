@@ -1,0 +1,7 @@
+{
+  "name": "qt-gala-netlify",
+  "private": true,
+  "dependencies": {
+    "google-spreadsheet": "^4.1.1"
+  }
+}
