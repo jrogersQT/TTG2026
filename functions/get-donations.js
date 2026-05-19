@@ -24,8 +24,8 @@ exports.handler = async function () {
     const donations = donationRows.map(row => ({
       external_id: row.get('external_id') || '',
       created_at: row.get('created_at') || '',
-      donor_name: row.get('donor_name') || '',
-      display_name: row.get('display_name') || '',
+      first_name: row.get('first_name') || '',
+      last_name: row.get('last_name') || '',
       amount: row.get('amount') || '',
       source: row.get('source') || '',
       status: row.get('status') || '',

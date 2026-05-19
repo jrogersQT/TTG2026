@@ -1053,9 +1053,10 @@
       const amount = Number(String(row.amount || "").replace(/[^0-9.-]+/g, ""));
       if (!amount || amount <= 0) return null;
 
-      const fallbackId = `${row.created_at || ""}-${row.display_name || row.donor_name || ""}-${amount}`;
+      const combinedName = [row.first_name, row.last_name].filter(Boolean).join(' ').trim();
+      const fallbackId = `${row.created_at || ""}-${combinedName || ""}-${amount}`;
       const id = String(row.external_id || fallbackId).trim();
-      const name = String(row.display_name || row.donor_name || "A Queens Theatre Supporter").trim();
+      const name = String(combinedName || "A Queens Theatre Supporter").trim();
       const tier = String(row.tier || getTier(amount)).trim().toLowerCase();
       return { id, name, amount, tier, message: String(row.notes || "").trim() };
     }
