@@ -916,8 +916,8 @@
 
   <script>
     const CONFIG = {
-      // Replace this with your published Google Sheet CSV URL.
-      csvUrl: "",
+      // Netlify function endpoint that returns Google Sheet data as JSON.
+      dataUrl: "/.netlify/functions/get-donations",
 
       goal: 100000,
       startingTotal: 0,
@@ -999,13 +999,13 @@
       setupControlChannel();
       updateQueueStatus();
 
-      if (CONFIG.csvUrl) {
+      if (CONFIG.dataUrl) {
         fetchDonations();
         setInterval(fetchDonations, CONFIG.pollEveryMs);
       }
 
-      if (CONFIG.demoMode && !CONFIG.signageMode) {
-        updateStatus("Demo mode · connect CSV to go live");
+      if (CONFIG.demoMode && !CONFIG.signageMode && !CONFIG.dataUrl) {
+        updateStatus("Demo mode · connect live data to go live");
         setTimeout(pushDemoDonation, 1000);
         setInterval(pushDemoDonation, CONFIG.demoEveryMs);
       }
@@ -1013,10 +1013,10 @@
 
     async function fetchDonations() {
       try {
-        const res = await fetch(cacheBust(CONFIG.csvUrl));
-        if (!res.ok) throw new Error("CSV fetch failed");
-        const csv = await res.text();
-        processRows(parseCSV(csv));
+        const res = await fetch(cacheBust(CONFIG.dataUrl));
+        if (!res.ok) throw new Error("JSON feed fetch failed");
+        const payload = await res.json();
+        processRows(payload.donations || [], payload.event_state || {});
         updateStatus(`Connected · ${new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`);
       } catch (err) {
         console.warn(err);
@@ -1024,26 +1024,40 @@
       }
     }
 
-    function processRows(rows) {
-      if (!rows.length) return;
+    function processRows(rows, eventState = {}) {
+      if (eventState.goal) {
+        const liveGoal = Number(String(eventState.goal).replace(/[^0-9.-]+/g, ""));
+        if (liveGoal > 0) {
+          CONFIG.goal = liveGoal;
+          el.goalAmount.textContent = money(CONFIG.goal);
+        }
+      }
+
       const allValid = rows.map(normalizeRow).filter(Boolean);
-      const calculatedTotal = CONFIG.startingTotal + allValid.reduce((sum, d) => sum + d.amount, 0);
-      animateTotalTo(calculatedTotal);
+
+      if (eventState.total_raised !== undefined && eventState.total_raised !== null && String(eventState.total_raised).trim() !== "") {
+        const liveTotal = Number(String(eventState.total_raised).replace(/[^0-9.-]+/g, ""));
+        if (!Number.isNaN(liveTotal) && liveTotal >= 0) {
+          animateTotalTo(liveTotal);
+        }
+      } else {
+        const calculatedTotal = CONFIG.startingTotal + allValid.reduce((sum, d) => sum + d.amount, 0);
+        animateTotalTo(calculatedTotal);
+      }
 
       const fresh = allValid.filter(d => !state.shownIds.has(d.id));
       fresh.forEach(queueDonation);
     }
 
     function normalizeRow(row) {
-      const c = CONFIG.columns;
-      const amount = Number(String(row[c.amount] || "").replace(/[^0-9.-]+/g, ""));
+      const amount = Number(String(row.amount || "").replace(/[^0-9.-]+/g, ""));
       if (!amount || amount <= 0) return null;
 
-      const fallbackId = `${row[c.timestamp] || ""}-${row[c.name] || ""}-${amount}`;
-      const id = String(row[c.id] || fallbackId).trim();
-      const name = String(row[c.name] || "A Queens Theatre Supporter").trim();
-      const tier = String(row[c.tier] || getTier(amount)).trim().toLowerCase();
-      return { id, name, amount, tier, message: "" };
+      const fallbackId = `${row.created_at || ""}-${row.display_name || row.donor_name || ""}-${amount}`;
+      const id = String(row.external_id || fallbackId).trim();
+      const name = String(row.display_name || row.donor_name || "A Queens Theatre Supporter").trim();
+      const tier = String(row.tier || getTier(amount)).trim().toLowerCase();
+      return { id, name, amount, tier, message: String(row.notes || "").trim() };
     }
 
     function queueDonation(donation) {
