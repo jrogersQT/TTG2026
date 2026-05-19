@@ -3,9 +3,12 @@ const { JWT } = require('google-auth-library');
 
 exports.handler = async function () {
   try {
+    const credsJson = Buffer.from(process.env.GOOGLE_SERVICE_ACCOUNT_JSON_BASE64, 'base64').toString('utf8');
+    const creds = JSON.parse(credsJson);
+
     const serviceAccountAuth = new JWT({
-      email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-      key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+      email: creds.client_email,
+      key: creds.private_key,
       scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly']
     });
 
