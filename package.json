@@ -2,6 +2,7 @@
   "name": "qt-gala-netlify",
   "private": true,
   "dependencies": {
+    "google-auth-library": "^9.15.1",
     "google-spreadsheet": "^4.1.1"
   }
 }
